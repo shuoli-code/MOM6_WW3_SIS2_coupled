@@ -396,12 +396,6 @@ contains
 		end if
 	
 	
-	!call pass_vector(Ice%sCS%IST%fxw2i_str, Ice%sCS%IST%fyw2i_str, Ice%sCS%G%Domain, stagger=CGRID_NE)
-	
-    !----------
-	!write(*,*)'from wave to ice stress: ',maxval(Ice%sCS%IST%fxw2i_str), maxval(Ice%sCS%IST%fyw2i_str)
-	!--------
-
     !--------------------------------------------------------------
 
     return
