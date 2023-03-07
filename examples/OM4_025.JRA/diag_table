@@ -1,0 +1,48 @@
+OM4_025 with JRA55-do
+1958 1 1 0 0 0
+
+"day_mean",   1,"days",1,"days","Time"
+
+"ocean_model",   "SSU", "SSU"    ,   "day_mean", "all", "mean", "none", 2
+"ocean_model",   "SSV", "SSV"    ,   "day_mean", "all", "mean", "none", 2
+"ice_model",     "siconc", "siconc" ,   "day_mean", "all", "mean", "none", 2
+"ice_model",     "sithick", "sithick" ,   "day_mean", "all", "mean", "none", 2
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

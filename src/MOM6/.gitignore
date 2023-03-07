@@ -1,0 +1,8 @@
+# Ignore vim and emacs files
+*.swp
+*~
+html
+*.log
+MOM6
+build/
+deps/

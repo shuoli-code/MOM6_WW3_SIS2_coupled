@@ -1,0 +1,6 @@
+! Blank file in which we can put "overrides" for parameters
+!VERBOSITY = 9
+USE_WAVES = True
+WAVE_METHOD = SURFACE_BANDS
+SURFBAND_SOURCE = COUPLER
+STK_BAND_COUPLER = 3
