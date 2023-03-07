@@ -1,12 +1,10 @@
-#WW3-MOM6-SIS2 coupled model
+# WW3-MOM6-SIS2 coupled model
+
 The coupled model WW3-MOM6-SIS2 which is adapted from 
-Geophysical Fluid Dynamics Laboratory (GFDL) global ocean and sea ice model OM4.0. 
+Geophysical Fluid Dynamics Laboratory (GFDL) global ocean and sea ice model OM4.0(https://github.com/breichl/FMS_Wave_Coupling/tree/Dec2020)
 The wave model WaveWatch 3 is coupled to MOM6-SIS2 considering non-breaking 
 wave-induced mixing at ocean surface (Babanin2006) and wave generated momentum 
 flux to ice (Boutin2020). 
-
-The compilation method is the similar as description for original model in 
-https://github.com/breichl/FMS_Wave_Coupling/tree/Dec2020
 
 ### Clone this repository, update submodules.
 
