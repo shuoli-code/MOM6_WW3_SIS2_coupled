@@ -15,6 +15,7 @@ use MOM_unit_scaling, only : unit_scale_type
 use MOM_variables, only : thermo_var_ptrs
 use MOM_verticalGrid, only : verticalGrid_type
 use MOM_EOS, only : calculate_density, calculate_density_derivs
+use MOM_wave_interface, only: wave_parameters_CS!------shuoli202306-------------
 
 implicit none ; private
 
@@ -97,7 +98,7 @@ contains
 
 !> Subroutine for calculating shear-driven diffusivity and TKE in tracer columns
 subroutine Calculate_kappa_shear(u_in, v_in, h, tv, p_surf, kappa_io, tke_io, &
-                                 kv_io, dt, G, GV, US, CS, initialize_all)
+                                 kv_io, dt, G, GV, US, CS, initialize_all, waves)!----shuoli202306------------)
   type(ocean_grid_type),   intent(in)    :: G      !< The ocean's grid structure.
   type(verticalGrid_type), intent(in)    :: GV     !< The ocean's vertical grid structure.
   type(unit_scale_type),   intent(in)    :: US     !< A dimensional unit scaling type
@@ -129,7 +130,10 @@ subroutine Calculate_kappa_shear(u_in, v_in, h, tv, p_surf, kappa_io, tke_io, &
                                                    !! call to kappa_shear_init.
   logical,       optional, intent(in)    :: initialize_all !< If present and false, the previous
                                                    !! value of kappa is used to start the iterations
-
+  !-------shuoli202306-------------
+  type(wave_parameters_CS), &
+                 optional, pointer       :: Waves  !< Wave CS for Langmuir turbulence
+  !--------------------------------
   ! Local variables
   real, dimension(SZI_(G),SZK_(GV)) :: &
     h_2d, &             ! A 2-D version of h, but converted to [Z ~> m].
@@ -289,11 +293,11 @@ subroutine Calculate_kappa_shear(u_in, v_in, h, tv, p_surf, kappa_io, tke_io, &
 #ifdef ADD_DIAGNOSTICS
       call kappa_shear_column(kappa, tke, dt, nzc, f2, surface_pres, &
                               dz, u0xdz, v0xdz, T0xdz, S0xdz, kappa_avg, &
-                              tke_avg, tv, CS, GV, US, I_Ld2_1d, dz_Int_1d)
+                              tke_avg, tv, CS, GV, US, I_Ld2_1d, dz_Int_1d, waves=waves, i=i, j=j)!--shuoli202306------------
 #else
       call kappa_shear_column(kappa, tke, dt, nzc, f2, surface_pres, &
                               dz, u0xdz, v0xdz, T0xdz, S0xdz, kappa_avg, &
-                              tke_avg, tv, CS, GV, US)
+                              tke_avg, tv, CS, GV, US, waves=waves, i=i, j=j)!--shuoli202306------------
 #endif
 
     ! call cpu_clock_begin(id_clock_setup)
@@ -360,7 +364,7 @@ end subroutine Calculate_kappa_shear
 
 !> Subroutine for calculating shear-driven diffusivity and TKE in corner columns
 subroutine Calc_kappa_shear_vertex(u_in, v_in, h, T_in, S_in, tv, p_surf, kappa_io, tke_io, &
-                                   kv_io, dt, G, GV, US, CS, initialize_all)
+                                   kv_io, dt, G, GV, US, CS, initialize_all, waves)!----shuoli202306------------
   type(ocean_grid_type),   intent(in)    :: G      !< The ocean's grid structure.
   type(verticalGrid_type), intent(in)    :: GV     !< The ocean's vertical grid structure.
   type(unit_scale_type),    intent(in)   :: US     !< A dimensional unit scaling type
@@ -395,7 +399,10 @@ subroutine Calc_kappa_shear_vertex(u_in, v_in, h, T_in, S_in, tv, p_surf, kappa_
                                                    !! call to kappa_shear_init.
   logical,       optional, intent(in)    :: initialize_all !< If present and false, the previous
                                                    !! value of kappa is used to start the iterations
-
+  !-------shuoli202306-------------
+  type(wave_parameters_CS), &
+                 optional, pointer       :: Waves  !< Wave CS for Langmuir turbulence
+  !--------------------------------
   ! Local variables
   real, dimension(SZIB_(G),SZK_(GV)) :: &
     h_2d, &             ! A 2-D version of h, but converted to [Z ~> m].
@@ -588,11 +595,11 @@ subroutine Calc_kappa_shear_vertex(u_in, v_in, h, T_in, S_in, tv, p_surf, kappa_
 #ifdef ADD_DIAGNOSTICS
       call kappa_shear_column(kappa, tke, dt, nzc, f2, surface_pres, &
                               dz, u0xdz, v0xdz, T0xdz, S0xdz, kappa_avg, &
-                              tke_avg, tv, CS, GV, US, I_Ld2_1d, dz_Int_1d)
+                              tke_avg, tv, CS, GV, US, I_Ld2_1d, dz_Int_1d, waves=waves, i=i, j=j)!--shuoli202306------------
 #else
       call kappa_shear_column(kappa, tke, dt, nzc, f2, surface_pres, &
                               dz, u0xdz, v0xdz, T0xdz, S0xdz, kappa_avg, &
-                              tke_avg, tv, CS, GV, US)
+                              tke_avg, tv, CS, GV, US, waves=waves, i=i, j=j)!--shuoli202306------------
 #endif
     ! call cpu_clock_begin(Id_clock_setup)
     ! Extrapolate from the vertically reduced grid back to the original layers.
@@ -662,7 +669,7 @@ end subroutine Calc_kappa_shear_vertex
 !> This subroutine calculates shear-driven diffusivity and TKE in a single column
 subroutine kappa_shear_column(kappa, tke, dt, nzc, f2, surface_pres, &
                               dz, u0xdz, v0xdz, T0xdz, S0xdz, kappa_avg, &
-                              tke_avg, tv, CS, GV, US, I_Ld2_1d, dz_Int_1d)
+                              tke_avg, tv, CS, GV, US, I_Ld2_1d, dz_Int_1d, waves, i, j)!--shuoli202306------------
   type(verticalGrid_type), intent(in)    :: GV !< The ocean's vertical grid structure.
   type(unit_scale_type),   intent(in)    :: US !< A dimensional unit scaling type
   real, dimension(SZK_(GV)+1), &
@@ -698,7 +705,12 @@ subroutine kappa_shear_column(kappa, tke, dt, nzc, f2, surface_pres, &
   real,  dimension(SZK_(GV)+1), &
            optional, intent(out)   :: dz_Int_1d !< The extent of a finite-volume space surrounding an interface,
                                                !! as used in calculating kappa and TKE [Z ~> m].
-
+  !-------shuoli202306-------------
+  type(wave_parameters_CS), &
+                 optional, pointer       :: Waves  !< Wave CS for Langmuir turbulence
+  integer,       optional, intent(in)    :: i      !< The i-index to work on (used for Waves)
+  integer,       optional, intent(in)    :: j      !< The i-index to work on (used for Waves)
+  !--------------------------------
   real, dimension(nzc) :: &
     u, &        ! The zonal velocity after a timestep of mixing [L T-1 ~> m s-1].
     v, &        ! The meridional velocity after a timestep of mixing [L T-1 ~> m s-1].
@@ -969,7 +981,7 @@ subroutine kappa_shear_column(kappa, tke, dt, nzc, f2, surface_pres, &
 
   ! call cpu_clock_begin(id_clock_KQ)
     call find_kappa_tke(N2, S2, kappa, Idz, dz_Int, I_L2_bdry, f2, &
-                        nzc, CS, GV, US, K_Q, tke, kappa_out, kappa_src, local_src)
+                        nzc, CS, GV, US, K_Q, tke, kappa_out, kappa_src, local_src, waves=waves, i=i, j=j,dz=dz)!---shuoli202306------------
   ! call cpu_clock_end(id_clock_KQ)
 
   ! call cpu_clock_begin(id_clock_avg)
@@ -1094,7 +1106,7 @@ subroutine kappa_shear_column(kappa, tke, dt, nzc, f2, surface_pres, &
     ! call cpu_clock_begin(id_clock_KQ)
       do K=1,nzc+1 ; K_Q_tmp(K) = K_Q(K) ; enddo
       call find_kappa_tke(N2, S2, kappa_out, Idz, dz_Int, I_L2_bdry, f2, &
-                          nzc, CS, GV, US, K_Q_tmp, tke_pred, kappa_pred)
+                          nzc, CS, GV, US, K_Q_tmp, tke_pred, kappa_pred, waves=waves, i=i, j=j,dz=dz)!--shuoli202306------------
     ! call cpu_clock_end(id_clock_KQ)
 
       ks_kappa = GV%ke+1 ; ke_kappa = 0
@@ -1113,7 +1125,7 @@ subroutine kappa_shear_column(kappa, tke, dt, nzc, f2, surface_pres, &
 
     ! call cpu_clock_begin(id_clock_KQ)
       call find_kappa_tke(N2, S2, kappa_out, Idz, dz_Int, I_L2_bdry, f2, &
-                          nzc, CS, GV, US, K_Q, tke_pred, kappa_pred)
+                          nzc, CS, GV, US, K_Q, tke_pred, kappa_pred, waves=waves, i=i, j=j,dz=dz)!--shuoli202306------------
     ! call cpu_clock_end(id_clock_KQ)
 
     ! call cpu_clock_begin(id_clock_avg)
@@ -1350,7 +1362,7 @@ end subroutine calculate_projected_state
 
 !> This subroutine calculates new, consistent estimates of TKE and kappa.
 subroutine find_kappa_tke(N2, S2, kappa_in, Idz, dz_Int, I_L2_bdry, f2, &
-                          nz, CS, GV, US, K_Q, tke, kappa, kappa_src, local_src)
+                          nz, CS, GV, US, K_Q, tke, kappa, kappa_src, local_src, waves, i, j,dz)!--shuoli202306------------
   integer,               intent(in)    :: nz  !< The number of layers to work on.
   real, dimension(nz+1), intent(in)    :: N2  !< The buoyancy frequency squared at interfaces [T-2 ~> s-2].
   real, dimension(nz+1), intent(in)    :: S2  !< The squared shear at interfaces [T-2 ~> s-2].
@@ -1377,6 +1389,15 @@ subroutine find_kappa_tke(N2, S2, kappa_in, Idz, dz_Int, I_L2_bdry, f2, &
   real, dimension(nz+1), optional, &
                          intent(out)   :: local_src !< The sum of all local sources for kappa,
                                               !! [T-1 ~> s-1].
+  !-------shuoli202306-------------
+  type(wave_parameters_CS), &
+                 optional, pointer       :: Waves  !< Wave CS for Langmuir turbulence
+  real :: p_wavkp
+  integer,       optional, intent(in)    :: i      !< The i-index to work on (used for Waves)
+  integer,       optional, intent(in)    :: j      !< The i-index to work on (used for Waves)
+  real, dimension(SZK_(GV)), &
+                     intent(in)    :: dz   !< The layer thickness [Z ~> m].
+  !--------------------------------
 !   This subroutine calculates new, consistent estimates of TKE and kappa.
 
   ! Local variables
@@ -1465,7 +1486,9 @@ subroutine find_kappa_tke(N2, S2, kappa_in, Idz, dz_Int, I_L2_bdry, f2, &
     dkappa_it1, K_Q_it1, d_dkappa_it1, dkappa_norm_it1
   integer :: it2
 #endif
-
+  !--------shuoli202306-------------
+  p_wavkp=0.0
+  !---------------------------------
   c_N2 = CS%C_N**2 ; c_S2 = CS%C_S**2
   q0 = CS%TKE_bg ; kappa0 = CS%kappa_0
   TKE_min = max(CS%TKE_bg, 1.0E-20*US%m_to_Z**2*US%T_to_s**2)
@@ -1560,17 +1583,29 @@ subroutine find_kappa_tke(N2, S2, kappa_in, Idz, dz_Int, I_L2_bdry, f2, &
       enddo
       dQ(1) = -TKE(1)
       if (tke_noflux_top_BC) then
+	    !---------------shuoli202306------------
         tke_src = kappa0*S2(1) + q0 * TKE_decay(1) ! Uses that kappa(1) = 0
+		p_wavkp = 0.0014 * waves%k_wv(i,j) * (waves%omiga_wv(i,j) * waves%hs_wv(i,j) / 2 )**3
+		tke_src = tke_src + p_wavkp
+		!-----------------------------------------
         bQd1 = dz_Int(1) * TKE_decay(1)
         bQ = 1.0 / (bQd1 +  aQ(1))
         tke(1) = bQ * (dz_Int(1)*tke_src)
         cQ(2) = aQ(1) * bQ ; cQcomp = bQd1 * bQ ! = 1 - cQ
       else
         tke(1) = q0 ; cQ(2) = 0.0 ; cQcomp = 1.0
+		!-------------shuoli202306-----------------------
+	    p_wavkp = 0.0014 * waves%k_wv(i,j) * (waves%omiga_wv(i,j) * waves%hs_wv(i,j) / 2 )**3
+		tke(1) = tke(1) + bQ * (dz_Int(1) * p_wavkp)
+		!-----------------------------------------------------------
       endif
       do K=2,ke_tke-1
         dQ(K) = -TKE(K)
         tke_src = (kappa(K) + kappa0)*S2(K) + q0*TKE_decay(K)
+		!----------shuoli202306------------
+		p_wavkp = p_wavkp * exp(-dz(K-1)*GV%H_to_Z*waves%k_wv(i,j)*3)
+		tke_src = tke_src + p_wavkp
+		!----------------------------------
         bQd1 = dz_Int(K)*(TKE_decay(K) + N2(K)*K_Q(K)) + cQcomp*aQ(k-1)
         bQ = 1.0 / (bQd1 + aQ(k))
         tke(K) = bQ * (dz_Int(K)*tke_src + aQ(k-1)*tke(K-1))
@@ -1582,6 +1617,10 @@ subroutine find_kappa_tke(N2, S2, kappa_in, Idz, dz_Int, I_L2_bdry, f2, &
       else
         k = ke_tke
         tke_src = kappa0*S2(K) + q0*TKE_decay(K) ! Uses that kappa(ke_tke) = 0
+		!----shuoli202306------------
+		p_wavkp = p_wavkp * exp(-dz(K-1)*GV%H_to_Z*waves%k_wv(i,j)*3)
+		tke_src = tke_src + p_wavkp
+		!---------------------------
         if (K == nz+1) then
           dQ(K) = -TKE(K)
           bQ = 1.0 / (dz_Int(K)*TKE_decay(K) + cQcomp*aQ(k-1))

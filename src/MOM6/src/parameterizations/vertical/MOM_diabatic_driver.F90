@@ -602,7 +602,7 @@ subroutine diabatic_ALE_legacy(u, v, h, tv, Hml, fluxes, visc, ADp, CDp, dt, Tim
   ! Sets: Kd_lay, Kd_int, visc%Kd_extra_T, visc%Kd_extra_S and visc%TKE_turb
   ! Also changes: visc%Kd_shear, visc%Kv_shear and visc%Kv_slow
   call set_diffusivity(u, v, h, u_h, v_h, tv, fluxes, CS%optics, &
-                       visc, dt, G, GV, US, CS%set_diff_CSp, Kd_lay, Kd_int)
+                       visc, dt, G, GV, US, CS%set_diff_CSp, Kd_lay, Kd_int,waves=waves)!--shuoli202306------
   call cpu_clock_end(id_clock_set_diffusivity)
   if (showCallTree) call callTree_waypoint("done with set_diffusivity (diabatic)")
 
@@ -1387,7 +1387,7 @@ subroutine diabatic_ALE(u, v, h, tv, Hml, fluxes, visc, ADp, CDp, dt, Time_end, 
   ! Sets: Kd_lay, Kd_int, visc%Kd_extra_T, visc%Kd_extra_S and visc%TKE_turb
   ! Also changes: visc%Kd_shear, visc%Kv_shear and visc%Kv_slow
   call set_diffusivity(u, v, h, u_h, v_h, tv, fluxes, CS%optics,  &
-                       visc, dt, G, GV, US,CS%set_diff_CSp, Kd_lay, Kd_int)
+                       visc, dt, G, GV, US,CS%set_diff_CSp, Kd_lay, Kd_int,waves=waves)!--shuoli202306------
   call cpu_clock_end(id_clock_set_diffusivity)
   if (showCallTree) call callTree_waypoint("done with set_diffusivity (diabatic)")
 
@@ -2130,7 +2130,7 @@ subroutine layered_diabatic(u, v, h, tv, Hml, fluxes, visc, ADp, CDp, dt, Time_e
     call pass_var(h, G%domain, halo=CS%halo_TS_diff, complete=.true.)
   endif
   call set_diffusivity(u, v, h, u_h, v_h, tv, fluxes, CS%optics, &
-                       visc, dt, G, GV, US, CS%set_diff_CSp, Kd_lay, Kd_int)
+                       visc, dt, G, GV, US, CS%set_diff_CSp, Kd_lay, Kd_int,waves=waves)!--shuoli202306------
   call cpu_clock_end(id_clock_set_diffusivity)
   if (showCallTree) call callTree_waypoint("done with set_diffusivity (diabatic)")
 
