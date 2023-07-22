@@ -163,7 +163,22 @@ ICE_DELTA_EDD_R_POND = 1.0      !   [nondimensional] default = 0.0
                                 ! A dreadfully documented tuning parameter for the radiative propeties of
                                 ! meltwater ponds on sea ice with the delta-Eddington radiative transfer
                                 ! calculation.
-
+Do_wave_induced_ice_breakup = True !default = .false.
+                                   ! introduce wave-induced ice breakup parameterization related with albedo in 
+                                   !summer or other machanisms
+albedo_reduction = 0.1          ! default = 0.0
+                                ! albedo reduction rate after ice breakup event happens
+icebreak_criteria = 0.014		! Nondim, use Voermans2020 et al. criteria value
+								! default 0.014
+flexural_strengh = 0.27         ! MPa, flexural strength
+                                ! default 0.27
+effective_young_modulus = 5.5   ! MPa, effective Young’s Modulus
+                                ! default 5.5
+                                !
+sic_cutoff = 0.9                ! sea ice concentration upper limit for ice breakup by waves in MIZ.
+                                ! default = 0.9
+wavelength_cutoff = 0.01        ! wave length cutoff to avoid numerical extremes in computing Ibr
+                                ! default = 0.01
 ! === module MOM_file_parser ===
 DOCUMENT_FILE = "SIS_parameter_doc" ! default = "MOM_parameter_doc"
                                 ! The basename for files where run-time parameters, their settings, units and

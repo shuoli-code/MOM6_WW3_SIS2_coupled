@@ -1018,7 +1018,10 @@ subroutine set_ice_surface_state(Ice, IST, OSS, Rad, FIA, G, IG, fCS)
   real :: H_to_m_ice     ! The specific volumes of ice and snow times the
   real :: H_to_m_snow    ! conversion factor from thickness units [m H-1 ~> m3].
   real, parameter :: T_0degC = 273.15 ! 0 degrees C in Kelvin
-
+  !---shuoli202307----------------------------------------------------
+  real :: iccon_all   !overall ice concentration for all layers
+  real :: icthick_all !overall ice thickness for all layers
+  !-----------------------------------------------------------------
   isc = G%isc ; iec = G%iec ; jsc = G%jsc ; jec = G%jec ; ncat = IG%CatIce
   i_off = LBOUND(Ice%t_surf,1) - G%isc ; j_off = LBOUND(Ice%t_surf,2) - G%jsc
 
@@ -1069,12 +1072,16 @@ subroutine set_ice_surface_state(Ice, IST, OSS, Rad, FIA, G, IG, fCS)
   !$OMP parallel do default(shared) private(i2,j2,k2,sw_abs_lay,albedos)
   do j=jsc,jec ; do k=1,ncat ; do i=isc,iec ; if (IST%part_size(i,j,k) > 0.0) then
     i2 = i+i_off ; j2 = j+j_off ; k2 = k+1
+	!--shuoli202307---------------------------
+	iccon_all = sum(IST%part_size(i,j,:))
+	icthick_all = sum(IST%mH_ice(i,j,:))*H_to_m_ice
+	!--------------------------------------------
     call ice_optics_SIS2(IST%mH_pond(i,j,k), IST%mH_snow(i,j,k)*H_to_m_snow, &
              IST%mH_ice(i,j,k)*H_to_m_ice, &
              Rad%t_skin(i,j,k), OSS%T_fr_ocn(i,j), IG%NkIce, albedos, &
              Rad%sw_abs_sfc(i,j,k),  Rad%sw_abs_snow(i,j,k), &
              sw_abs_lay, Rad%sw_abs_ocn(i,j,k), Rad%sw_abs_int(i,j,k), &
-             fCS%optics_CSp, IST%ITV, coszen_in=Rad%coszen_nextrad(i,j))
+             fCS%optics_CSp, IST%ITV, coszen_in=Rad%coszen_nextrad(i,j), wavehs=IST%wv2ic_hs(i,j), wavenumb=IST%wv2ic_k(i,j), sic_all=iccon_all, hi_all=icthick_all)!--shuoli202307--
     Ice%albedo_vis_dir(i2,j2,k2) = albedos(VIS_DIR)
     Ice%albedo_vis_dif(i2,j2,k2) = albedos(VIS_DIF)
     Ice%albedo_nir_dir(i2,j2,k2) = albedos(NIR_DIR)
@@ -1206,7 +1213,10 @@ subroutine set_ice_optics(IST, OSS, Tskin_ice, coszen, Rad, G, IG, optics_CSp)
   real :: H_to_m_ice  ! The specific volumes of ice and snow times the
   real :: H_to_m_snow ! conversion factor from thickness units [m H-1 ~> m3].
   integer :: i, j, k, m, isc, iec, jsc, jec, ncat
-
+  !---shuoli202307----------------------------------------------------
+  real :: iccon_all   !overall ice concentration for all layers
+  real :: icthick_all !overall ice thickness for all layers
+  !-----------------------------------------------------------------
   isc = G%isc ; iec = G%iec ; jsc = G%jsc ; jec = G%jec ; ncat = IG%CatIce
 
   call get_SIS2_thermo_coefs(IST%ITV, rho_ice=rho_ice, rho_snow=rho_snow)
@@ -1214,11 +1224,15 @@ subroutine set_ice_optics(IST, OSS, Tskin_ice, coszen, Rad, G, IG, optics_CSp)
 
   !$OMP parallel do default(shared) private(albedos, sw_abs_lay)
   do j=jsc,jec ; do k=1,ncat ; do i=isc,iec ; if (IST%part_size(i,j,k) > 0.0) then
+    !--shuoli202307---------------------------
+	iccon_all = sum(IST%part_size(i,j,:))
+	icthick_all = sum(IST%mH_ice(i,j,:))*H_to_m_ice
+	!--------------------------------------------
     call ice_optics_SIS2(IST%mH_pond(i,j,k), IST%mH_snow(i,j,k)*H_to_m_snow, &
              IST%mH_ice(i,j,k)*H_to_m_ice, Tskin_ice(i,j,k), OSS%T_fr_ocn(i,j), IG%NkIce, &
              albedos, Rad%sw_abs_sfc(i,j,k),  Rad%sw_abs_snow(i,j,k), &
              sw_abs_lay, Rad%sw_abs_ocn(i,j,k), Rad%sw_abs_int(i,j,k), &
-             optics_CSp, IST%ITV, coszen_in=coszen(i,j))
+             optics_CSp, IST%ITV, coszen_in=coszen(i,j), wavehs=IST%wv2ic_hs(i,j), wavenumb=IST%wv2ic_k(i,j), sic_all=iccon_all, hi_all=icthick_all)!--shuoli202307--
 
     do m=1,IG%NkIce ; Rad%sw_abs_ice(i,j,k,m) = sw_abs_lay(m) ; enddo
 

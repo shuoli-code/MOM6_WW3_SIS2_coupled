@@ -73,6 +73,10 @@ type ice_state_type
   !---shuoli202111--------------------------------------------------------------------------
   real, allocatable, dimension(:,:) :: fxw2i_str  !<
   real, allocatable, dimension(:,:) :: fyw2i_str  !<
+  !---shuoli202307------------------------------------------------------------
+  real, allocatable, dimension(:,:) :: wv2ic_hs !<
+  real, allocatable, dimension(:,:) :: wv2ic_k  !<
+  real, allocatable, dimension(:,:) :: wv2ic_omiga  !<
   !------------------------------------------------------------------------------------------
 
   real, allocatable, dimension(:,:,:) :: &

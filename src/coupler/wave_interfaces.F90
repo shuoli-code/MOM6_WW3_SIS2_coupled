@@ -166,6 +166,14 @@ contains
 	Ice%sCS%IST%fxw2i_str(:,:) = 0.0
 	allocate(Ice%sCS%IST%fyw2i_str(Ice%sCS%G%isd:Ice%sCS%G%ied,Ice%sCS%G%jsdB:Ice%sCS%G%jedB))
 	Ice%sCS%IST%fyw2i_str(:,:) = 0.0
+	!----------------shuoli202307-----------------
+	allocate(Ice%sCS%IST%wv2ic_hs(Ice%sCS%G%isc:Ice%sCS%G%iec,Ice%sCS%G%jsc:Ice%sCS%G%jec))
+	Ice%sCS%IST%wv2ic_hs(:,:) = 0.0
+	allocate(Ice%sCS%IST%wv2ic_k(Ice%sCS%G%isc:Ice%sCS%G%iec,Ice%sCS%G%jsc:Ice%sCS%G%jec))
+	Ice%sCS%IST%wv2ic_k(:,:) = 0.0
+	allocate(Ice%sCS%IST%wv2ic_omiga(Ice%sCS%G%isc:Ice%sCS%G%iec,Ice%sCS%G%jsc:Ice%sCS%G%jec))
+	Ice%sCS%IST%wv2ic_omiga(:,:) = 0.0
+	
     !-------------------------------------------------
 
     return
@@ -353,6 +361,12 @@ contains
       icefxw2i_str(Ice%sCS%G%isc:Ice%sCS%G%iec,Ice%sCS%G%jsc:Ice%sCS%G%jec) = Ice_Wave_Boundary%icegrd_tauxice_mpp(:,:,1) * 1026.0
 	  icefyw2i_str(Ice%sCS%G%isc:Ice%sCS%G%iec,Ice%sCS%G%jsc:Ice%sCS%G%jec) = Ice_Wave_Boundary%icegrd_tauyice_mpp(:,:,1) * 1026.0
 	
+	!-shuoli302307---------------------------
+	!wave to ice for albedo changed by ice breakup criteria
+	Ice%sCS%IST%wv2ic_hs = Ice_Wave_Boundary%icegrd_hs_mpp(:,:,1)
+	Ice%sCS%IST%wv2ic_k = Ice_Wave_Boundary%icegrd_k_mpp(:,:,1)
+	Ice%sCS%IST%wv2ic_omiga = Ice_Wave_Boundary%icegrd_omiga_mpp(:,:,1)
+	!----------------------------------------------------------------
 	
 	! set wave-to-ice stress, all introduced here
 	call pass_vector(icefxw2i_str, icefyw2i_str, Ice%sCS%G%Domain, stagger=AGRID)
@@ -396,6 +410,12 @@ contains
 		end if
 	
 	
+	!call pass_vector(Ice%sCS%IST%fxw2i_str, Ice%sCS%IST%fyw2i_str, Ice%sCS%G%Domain, stagger=CGRID_NE)
+	
+    !----------
+	!write(*,*)'from wave to ice stress: ',maxval(Ice%sCS%IST%fxw2i_str), maxval(Ice%sCS%IST%fyw2i_str)
+	!--------
+
     !--------------------------------------------------------------
 
     return

@@ -925,7 +925,10 @@ subroutine redo_update_ice_model_fast(IST, sOSS, Rad, FIA, TSF, optics_CSp, &
   real :: enth_units ! A conversion factor from Joules kg-1 to enthalpy units.
   real :: I_Nk
   real :: kg_H_Nk  ! The conversion factor from units of H to kg/m2 over Nk.
-
+  !---shuoli202307----------------------------------------------------
+  real :: iccon_all   !overall ice concentration for all layers
+  real :: icthick_all !overall ice thickness for all layers
+  !-----------------------------------------------------------------
   if (.not.associated(CS)) call SIS_error(FATAL, &
          "SIS_fast_thermo: Module must be initialized before it is used.")
 
@@ -1009,11 +1012,15 @@ subroutine redo_update_ice_model_fast(IST, sOSS, Rad, FIA, TSF, optics_CSp, &
     ! can depend on the surface skin temperature, which is not yet well known,
     ! there may be some iteration for self-consistency.
     do k=1,ncat ; do i=isc,iec ; if (do_optics(i,j) .and. IST%part_size(i,j,k) > 0.0) then
+	  !--shuoli202307---------------------------
+	  iccon_all = sum(IST%part_size(i,j,:))
+	  icthick_all = sum(IST%mH_ice(i,j,:))*H_to_m_ice
+	  !--------------------------------------------
       call ice_optics_SIS2(IST%mH_pond(i,j,k), IST%mH_snow(i,j,k)*H_to_m_snow, &
                IST%mH_ice(i,j,k)*H_to_m_ice, Rad%Tskin_Rad(i,j,k), sOSS%T_fr_ocn(i,j), IG%NkIce, &
                albedos, Rad%sw_abs_sfc(i,j,k), Rad%sw_abs_snow(i,j,k), &
                sw_abs_lay, Rad%sw_abs_ocn(i,j,k), Rad%sw_abs_int(i,j,k), &
-               optics_CSp, IST%ITV, coszen_in=Rad%coszen_lastrad(i,j))
+               optics_CSp, IST%ITV, coszen_in=Rad%coszen_lastrad(i,j), wavehs=IST%wv2ic_hs(i,j), wavenumb=IST%wv2ic_k(i,j), sic_all=iccon_all, hi_all=icthick_all)!--shuoli202307--
 
       if (CS%max_Tskin_itt > 0) then
         ! Determine a new skin temperature that is consistent with the updated
@@ -1065,7 +1072,7 @@ subroutine redo_update_ice_model_fast(IST, sOSS, Rad, FIA, TSF, optics_CSp, &
                   IST%mH_ice(i,j,k)*H_to_m_ice, Tskin, sOSS%T_fr_ocn(i,j), IG%NkIce, &
                   albedos, Rad%sw_abs_sfc(i,j,k), Rad%sw_abs_snow(i,j,k), &
                   sw_abs_lay, Rad%sw_abs_ocn(i,j,k), Rad%sw_abs_int(i,j,k), &
-                  optics_CSp, IST%ITV, coszen_in=Rad%coszen_lastrad(i,j))
+                  optics_CSp, IST%ITV, coszen_in=Rad%coszen_lastrad(i,j), wavehs=IST%wv2ic_hs(i,j), wavenumb=IST%wv2ic_k(i,j), sic_all=iccon_all, hi_all=icthick_all)!--shuoli202307--
           ! The feedbacks on the shortwave radiation are destabilizing, but only
           ! over a limited temperature range, so stop iterating (1) if the skin
           ! temperature is changing by a small enough amount, (2) there is

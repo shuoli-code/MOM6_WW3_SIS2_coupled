@@ -37,6 +37,16 @@ type, public :: SIS_optics_CS ; private
   logical :: do_deltaEdd = .true.  !< If true, use a delta-Eddington radiative
                           ! transfer calculation for the shortwave radiation
                           ! within the sea-ice and snow.
+						  
+  !----shuoli202307------------
+  logical :: do_wave2ice_break = .false.  !<do wave induced ice breakup
+  real :: albedo_reduction = 0.0       !<albedo reduction rate after breakup event happens due to waves
+  real :: iceb_criteria = 0.014       !<Nondim, use Voermans2020 et al. criteria value
+  real :: flex_strengh = 0.27         !<MPa, flexural strength
+  real :: young_modulus = 5.5         !<MPa, effective Young’s Modulus
+  real :: siconcutoff = 0.9           !<%, sea ice concentration uppler limit for ice breaking by waves
+  real :: wavelencutoff = 0.01         !<m, wave length cutoff to avoid numerical extremes
+  !------------------------------
 
   logical :: do_pond = .false. !< activate melt pond scheme - mw/new
   real :: max_pond_frac = 0.5  !< pond water beyond this is dumped [nondim]
@@ -89,7 +99,39 @@ subroutine SIS_optics_init(param_file, CS, slab_optics)
     call log_param(param_file, mdl, "! USE_SLAB_ICE_OPTICS", CS%slab_optics, &
                  "Using the very old slab-style ice optics.")
   endif
-
+  
+  !---shuoli202307--------add ice breakup induced by waves-----------------
+  call get_param(param_file, mdl, "Do_wave_induced_ice_breakup", CS%do_wave2ice_break, &
+                 "introduce wave-induced ice breakup parameterization related with albedo in \n"//&
+                 "summer or other machanisms.", &
+                 default=.false.)
+  if (CS%do_wave2ice_break) then
+    call get_param(param_file, mdl, "albedo_reduction", CS%albedo_reduction, &
+                 "albedo reduction rate after ice breakup event happens \n"//&
+                 "with default value of zero", &
+                 default=0.0)
+	call get_param(param_file, mdl, "icebreak_criteria", CS%iceb_criteria, &
+                 "Nondim, use Voermans2020 et al. criteria value \n"//&
+                 "with default value of 0.014", &
+                 default=0.014)
+	call get_param(param_file, mdl, "flexural_strengh", CS%flex_strengh, &
+                 "MPa, flexural strength \n"//&
+                 "with default value of 0.27", &
+                 default=0.27)
+	call get_param(param_file, mdl, "effective_young_modulus", CS%young_modulus, &
+                 "MPa, effective Young’s Modulus \n"//&
+                 "with default value of 5.5", &
+                 default=5.5)
+	call get_param(param_file, mdl, "sic_cutoff", CS%siconcutoff, &
+                 "sea ice concentration upper limit for ice breakup by waves in MIZ \n"//&
+                 "with default value of 0.9", &
+                 default=0.9)			 
+	call get_param(param_file, mdl, "wavelength_cutoff", CS%wavelencutoff, &
+                 "wave length cutoff to avoid numerical extremes in computing Ibr \n"//&
+                 "with default value of 0.01", &
+                 default=0.01)
+  endif
+  !---------------------------------------------------------------------
   call get_param(param_file, mdl, "DO_DELTA_EDDINGTON_SW", CS%do_deltaEdd, &
                  "If true, a delta-Eddington radiative transfer calculation \n"//&
                  "for the shortwave radiation within the sea-ice.", &
@@ -158,7 +200,7 @@ end subroutine SIS_optics_init
 !~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~!
 !> ice_optics_SIS2 sets albedo, penetrating solar, and ice/snow transmissivity
 subroutine ice_optics_SIS2(mp, hs, hi, ts, tfw, NkIce, albedos, abs_sfc, &
-                    abs_snow, abs_ice_lay, abs_ocn, abs_int, CS, ITV, coszen_in)
+                    abs_snow, abs_ice_lay, abs_ocn, abs_int, CS, ITV, coszen_in, wavehs, wavenumb, sic_all, hi_all)
   real, intent(in   ) :: mp  !< pond mass [kg m-2]
   real, intent(in   ) :: hs  !< snow thickness [m]
   real, intent(in   ) :: hi  !< ice thickness [m]
@@ -174,7 +216,14 @@ subroutine ice_optics_SIS2(mp, hs, hi, ts, tfw, NkIce, albedos, abs_sfc, &
   type(SIS_optics_CS), intent(in) :: CS  !< The ice optics control structure.
   type(ice_thermo_type), intent(in) :: ITV !< The ice thermodynamic parameter structure.
   real, intent(in),optional :: coszen_in !< The cosine of the solar zenith angle [nondim].
-
+  !-------shuoli202307----------------------------------
+  real, intent(in),optional :: wavehs
+  real, intent(in),optional :: wavenumb
+  real, intent(in),optional :: sic_all
+  real, intent(in),optional :: hi_all
+  real :: pi = 3.14159265359 ! pi = 3.1415926... 
+  real :: icebr
+  !------------------------------------------------------
   real :: alb             ! The albedo for all bands, 0-1 [nondim].
   real :: as              ! A snow albedo, 0-1 [nondim].
   real :: ai              ! The ice albedo, 0-1 [nondim].
@@ -278,6 +327,14 @@ subroutine ice_optics_SIS2(mp, hs, hi, ts, tfw, NkIce, albedos, abs_sfc, &
     do b=1,nb ; albedos(b) = alb ; enddo
     abs_sfc = 1.0
     abs_snow = 0.0 ; abs_ice_lay(:) = 0.0 ; abs_ocn = 0.0 ; abs_int = 0.0
+	!----shuoli202307---introduce wave-ice breakup here---------
+	if (CS%do_wave2ice_break) then
+	  icebr = (wavehs * hi_all * CS%young_modulus) / (2 * CS%flex_strengh * (2 * pi / wavenumb)**2)
+	  if (icebr > CS%iceb_criteria .and. (2 * pi / wavenumb) > CS%wavelencutoff .and. sic_all < CS%siconcutoff) then
+	    albedos = albedos * (1-CS%albedo_reduction)
+	  endif
+	endif
+	!----------------------------
   elseif (CS%do_deltaEdd) then
 
     if (nilyr /= NkIce) then
@@ -351,6 +408,15 @@ subroutine ice_optics_SIS2(mp, hs, hi, ts, tfw, NkIce, albedos, abs_sfc, &
 
     pen = (fswint(1,1) + fswthru(1,1)) * I_coalb
     abs_int = fswint(1,1) * I_coalb
+	
+	!----shuoli202307---introduce wave-ice breakup here---------
+	if (CS%do_wave2ice_break) then
+	  icebr = (wavehs * hi_all * CS%young_modulus) / (2 * CS%flex_strengh * (2 * pi / wavenumb)**2)
+	  if (icebr > CS%iceb_criteria .and. (2 * pi / wavenumb) > CS%wavelencutoff .and. sic_all < CS%siconcutoff) then
+	    albedos = albedos * (1-CS%albedo_reduction)
+	  endif
+	endif
+	!----------------------------
 
   else
     as = CS%alb_snow ; ai = CS%alb_ice
@@ -381,7 +447,15 @@ subroutine ice_optics_SIS2(mp, hs, hi, ts, tfw, NkIce, albedos, abs_sfc, &
       SW_frac_top = SW_frac_top * opt_decay_lay
     enddo
     abs_int = pen - SW_frac_top
-
+	
+    !----shuoli202307---introduce wave-ice breakup here---------
+	if (CS%do_wave2ice_break) then
+	  icebr = (wavehs * hi_all * CS%young_modulus) / (2 * CS%flex_strengh * (2 * pi / wavenumb)**2)
+	  if (icebr > CS%iceb_criteria .and. (2 * pi / wavenumb) > CS%wavelencutoff .and. sic_all < CS%siconcutoff) then
+	    albedos = albedos * (1-CS%albedo_reduction)
+	  endif
+	endif
+	!----------------------------
      !! check for ice albedos out of range (0 to 1)
      ! if (alb.lt.0.0 .or. alb.gt.1.0) then
      !    print *,'ice_optics: albedo out of range, alb=',alb
