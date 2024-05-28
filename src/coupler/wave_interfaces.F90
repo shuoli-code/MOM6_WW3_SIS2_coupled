@@ -301,6 +301,15 @@ contains
       call get_from_xgrid(Ice_Wave_Boundary%icegrd_hs_mpp(:,:,:), 'OCN', ex_hs, xmap_ice_wav)
       call get_from_xgrid(Ice_Wave_Boundary%icegrd_k_mpp(:,:,:), 'OCN', ex_k, xmap_ice_wav)
 	  call get_from_xgrid(Ice_Wave_Boundary%icegrd_omiga_mpp(:,:,:), 'OCN', ex_omiga, xmap_ice_wav)
+	  
+	  !do j=Ice%sCS%G%jsc,Ice%sCS%G%jec ; do i=Ice%sCS%G%isc,Ice%sCS%G%iec
+	    !if (Ice_Wave_Boundary%icegrd_hs_mpp(i,j,1)<=0.0 .or. Ice_Wave_Boundary%icegrd_k_mpp(i,j,1)<=0.0 .or. Ice_Wave_Boundary%icegrd_omiga_mpp(i,j,1)<=0.0) then
+		  !Ice_Wave_Boundary%icegrd_hs_mpp(i,j,1)=0.0
+		  !Ice_Wave_Boundary%icegrd_k_mpp(i,j,1)=0.0
+		  !Ice_Wave_Boundary%icegrd_omiga_mpp(i,j,1)=0.0
+		!endif
+	  !enddo ; enddo
+	  
     endif
     !---------------------------------------------------------------------------------------
     !%-------------------shuoli202111----------------------------------------
@@ -396,6 +405,12 @@ contains
 		end if
 	
 	
+	!call pass_vector(Ice%sCS%IST%fxw2i_str, Ice%sCS%IST%fyw2i_str, Ice%sCS%G%Domain, stagger=CGRID_NE)
+	
+    !----------
+	!write(*,*)'from wave to ice stress: ',maxval(Ice%sCS%IST%fxw2i_str), maxval(Ice%sCS%IST%fyw2i_str)
+	!--------
+
     !--------------------------------------------------------------
 
     return

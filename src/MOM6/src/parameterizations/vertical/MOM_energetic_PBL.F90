@@ -102,7 +102,7 @@ type, public :: energetic_PBL_CS ; private
 
   !/ vertical decay related options
   real    :: TKE_decay       !< The ratio of the natural Ekman depth to the TKE decay scale [nondim].
-
+  !------------------------
   !/ mstar_scheme == 0
   real    :: fixed_mstar     !< Mstar is the ratio of the friction velocity cubed to the TKE available to
                              !! drive entrainment, nondimensional. This quantity is the vertically
@@ -779,12 +779,11 @@ subroutine ePBL_column(h, u, v, T0, S0, dSV_dT, dSV_dS, TKE_forcing, B_flux, abs
 
   integer :: k, nz, itt, max_itt
   !----------shuoli202203-----------
-  real :: p_wav, p_wav_new, mech_TKE_new, mech_TKE_old, mech_TKE_old_all
-  !---------------------------------
-  !---------shuoli202203-----
-  p_wav=0.0 ; p_wav_new=0.0 ; mech_TKE_new=0.0 ; mech_TKE_old=0.0 ; mech_TKE_old_all=0.0
+  real :: p_wav, p_wav_new, mech_TKE_new, mech_TKE_old, mech_TKE_old_all, pwavweight
   !------------------------
-
+  p_wav=0.0 ; p_wav_new=0.0 ; mech_TKE_new=0.0 ; mech_TKE_old=0.0 ; mech_TKE_old_all=0.0; pwavweight=0.0
+  !------------------------
+			
   nz = GV%ke
 
   if (.not. associated(CS)) call MOM_error(FATAL, "energetic_PBL: "//&
@@ -849,11 +848,6 @@ subroutine ePBL_column(h, u, v, T0, S0, dSV_dT, dSV_dS, TKE_forcing, B_flux, abs
 
   ! Iterate to determine a converged EPBL depth.
   OBL_converged = .false.
-  !----Shuoli202203----test--
-  !dep_wav = 0.0
-  !do kdep=1,3 ; dep_wav = dep_wav - h(kdep)*GV%H_to_Z ; enddo
-  !write(*,*)'depth, hs/k/om, wave tke, deep wave tke: ', dep_wav, waves%hs_wv(i,j),waves%k_wv(i,j),waves%omiga_wv(i,j), (0.0014 * waves%k_wv(i,j) * (waves%omiga_wv(i,j) * waves%hs_wv(i,j) / 2 )**3), (0.0014 * waves%k_wv(i,j) * (waves%omiga_wv(i,j) * waves%hs_wv(i,j) / 2 * exp(waves%k_wv(i,j)*dep_wav) )**3)
-  !--------
   do OBL_it=1,CS%Max_MLD_Its
 
     if (.not. OBL_converged) then
@@ -885,8 +879,11 @@ subroutine ePBL_column(h, u, v, T0, S0, dSV_dT, dSV_dS, TKE_forcing, B_flux, abs
       endif
 	  !-----------shuoli202203-------add Pw, surface wave shear-------
 	  mech_TKE_old = mech_TKE
-	  p_wav = (dt * GV%Rho0 * MLD_guess) * 0.0014 * waves%k_wv(i,j) * (waves%omiga_wv(i,j) * waves%hs_wv(i,j) / 2 )**3
-	  !if ( is_NAN(p_wav) ) p_wav = 0.0
+	  !-----------shuoli202309--
+	  p_wav = waves%wvmix_conv_coeff * (dt * GV%Rho0) * 0.0014/3 * (1 - exp( -(sum(h)*GV%H_to_Z ) * 3 * waves%k_wv(i,j))) * (waves%omiga_wv(i,j) * waves%hs_wv(i,j) / 2 )**3
+	  !
+	  if ( is_NAN(p_wav) .or. p_wav < 0.0 ) p_wav = 0.0
+	  !-------------------------------------
 	  mech_TKE = mech_TKE + p_wav
 	  mech_TKE_old_all = mech_TKE
 	  !----------------------------------------
@@ -915,7 +912,7 @@ subroutine ePBL_column(h, u, v, T0, S0, dSV_dT, dSV_dS, TKE_forcing, B_flux, abs
 		  p_wav_new = 0.0
 		elseif (mech_TKE > 0.0 .and. mech_TKE_old_all-mech_TKE>mech_TKE_old) then
 		  mech_TKE_new = 0.0
-		  p_wav_new = p_wav - (mech_TKE_old_all - mech_TKE - mech_TKE_old)
+		  p_wav_new = p_wav! - (mech_TKE_old_all - mech_TKE - mech_TKE_old)
 		elseif (mech_TKE > 0.0 .and. mech_TKE_old_all-mech_TKE<=mech_TKE_old) then
 		  mech_TKE_new = mech_TKE_old - (mech_TKE_old_all - mech_TKE)
 		  p_wav_new = p_wav
@@ -986,36 +983,41 @@ subroutine ePBL_column(h, u, v, T0, S0, dSV_dT, dSV_dS, TKE_forcing, B_flux, abs
         if (Idecay_len_TKE > 0.0) exp_kh = exp(-h(k-1)*Idecay_len_TKE)
         if (CS%TKE_diagnostics) &
           eCD%dTKE_mech_decay = eCD%dTKE_mech_decay + (exp_kh-1.0) * mech_TKE * I_dtdiag
-		  
-        !-----shuoli202203------
+		
+		!-----shuoli202203------
         if (mech_TKE <= 0.0) then
 		  mech_TKE = 0.0
 		  mech_TKE_new = 0.0
 		  p_wav_new = 0.0
 		elseif (mech_TKE > 0.0 .and. mech_TKE_old_all-mech_TKE>=mech_TKE_old) then
 		  mech_TKE_new = 0.0
-		  p_wav_new = p_wav - (mech_TKE_old_all - mech_TKE - mech_TKE_old)
+		  p_wav_new = p_wav! - (mech_TKE_old_all - mech_TKE - mech_TKE_old)
 		elseif (mech_TKE > 0.0 .and. mech_TKE_old_all-mech_TKE<mech_TKE_old) then
 		  mech_TKE_new = mech_TKE_old - (mech_TKE_old_all - mech_TKE)
 		  p_wav_new = p_wav
 		endif
+		!--------shuoli202309-----
+		!pwavweight = (exp(3 * waves%k_wv(i,j) * sum(h(k:nz)) * GV%H_to_Z ) - 1) / (exp(3 * waves%k_wv(i,j) * sum(h(k-1:nz)) * GV%H_to_Z ) - 1)
+		if (p_wav_new <=0.0) then
+		  pwavweight = 0.0
+		else!--202401
+		  if (k==2) then
+		    pwavweight = (exp(-3 * waves%k_wv(i,j) * h(1) * GV%H_to_Z ) - exp(-3 * waves%k_wv(i,j) * sum(h(1:nz)) * GV%H_to_Z) )/(1- exp(-3 * waves%k_wv(i,j) * sum(h(1:nz)) * GV%H_to_Z) )
+		    if ( is_NAN(pwavweight) ) pwavweight = 0.0
+		  else
+		    pwavweight = (exp(-3 * waves%k_wv(i,j) * sum(h(1:k-1)) * GV%H_to_Z ) - exp(-3 * waves%k_wv(i,j) * sum(h(1:nz)) * GV%H_to_Z) )/(exp(-3 * waves%k_wv(i,j) * sum(h(1:k-2)) * GV%H_to_Z ) - exp(-3 * waves%k_wv(i,j) * sum(h(1:nz)) * GV%H_to_Z) )
+		    if ( is_NAN(pwavweight) ) pwavweight = 0.0
+		  endif
+		endif
 		!------
 		mech_TKE = mech_TKE_new * exp_kh !----Shuoli202203---tke to tkenew---
 		mech_TKE_old = mech_TKE
-		p_wav = p_wav_new * exp(-h(k-1)*GV%H_to_Z*waves%k_wv(i,j)*3)
+		!---------shuoli202309------
+		p_wav = p_wav_new * pwavweight
+		!----------------------------
 		mech_TKE = mech_TKE + p_wav
 		mech_TKE_old_all = mech_TKE
-		!--------------------
-		
-		!----------shuoli202203------add Pw in depths--------
-		!dep_wav = 0.0
-		!do kdep=1,k-1 ; dep_wav = dep_wav - h(kdep)*GV%H_to_Z ; enddo
-		!p_wav_dep = 0.0014 * waves%k_wv(i,j) * (waves%omiga_wv(i,j) * waves%hs_wv(i,j) / 2 * exp(waves%k_wv(i,j)*dep_wav) )**3
-		!if ( is_NAN(p_wav_dep) .or. mech_TKE<=0.0 ) p_wav_dep = 0.0
-		!mech_TKE = mech_TKE + p_wav_dep * (dt * GV%Rho0 * MLD_guess)
-	    !write(*,*)'depth, mech_Tke surface with wave, wave tke: ', dep_wav, mech_TKE, p_wav_dep
-		!----------------------------------------
-
+		!------
         !   Accumulate any convectively released potential energy to contribute
         ! to wstar and to drive penetrating convection.
         if (TKE_forcing(k) > 0.0) then
@@ -1023,7 +1025,7 @@ subroutine ePBL_column(h, u, v, T0, S0, dSV_dT, dSV_dS, TKE_forcing, B_flux, abs
           if (CS%TKE_diagnostics) &
             eCD%dTKE_forcing = eCD%dTKE_forcing + CS%nstar*TKE_forcing(k) * I_dtdiag
         endif
-
+		
         if (debug) then
           mech_TKE_k(K) = mech_TKE ; conv_PErel_k(K) = conv_PErel
         endif
@@ -1039,13 +1041,14 @@ subroutine ePBL_column(h, u, v, T0, S0, dSV_dT, dSV_dS, TKE_forcing, B_flux, abs
         endif
 
         if (debug) nstar_k(K) = nstar_FC
-
+		
         tot_TKE = mech_TKE + nstar_FC * conv_PErel
+		
 
         !   For each interior interface, first discard the TKE to account for
         ! mixing of shortwave radiation through the next denser cell.
         if (TKE_forcing(k) < 0.0) then
-          if (TKE_forcing(k) + tot_TKE < 0.0) then
+          if (TKE_forcing(k) + tot_TKE <= 0.0) then
             ! The shortwave requirements deplete all the energy in this layer.
             if (CS%TKE_diagnostics) then
               eCD%dTKE_mixing = eCD%dTKE_mixing + tot_TKE * I_dtdiag
